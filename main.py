@@ -69,7 +69,7 @@ def parse(tokens: list[Token]) -> RootNode:
             return NullNode(consume("NULL"))
         else:
             raise RuntimeError(
-                "Could not parse value, ensure it is of type [number, string, boolean, null]"
+                "Could not parse value, ensure it is of type (number, string, boolean, null)"
             )
 
     def parse_key_value_pair() -> KeyValueNode:
@@ -92,11 +92,17 @@ def parse(tokens: list[Token]) -> RootNode:
     return ast
 
 
+def pprint_ast(ast: RootNode):
+    print("RootNode(")
+    for node in ast.body:
+        print(f"  KeyValueNode({node.key}: {node.value})")
+    print(")")
+
+
 def main():
     file = sys.argv[1]
     with open(file) as f:
-        tokens = tokenise(f.read())
-        print(parse(tokens))
+        pprint_ast(parse(tokenise(f.read())))
 
 
 if __name__ == "__main__":
