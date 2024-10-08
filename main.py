@@ -24,6 +24,8 @@ def tokenise(inp: str) -> list[Token]:
     COMMA = r"(?P<COMMA>,)"
     NULL = r"(?P<NULL>null)"
     WS = r"(?P<WS>\s+)"
+    # catch all
+    ERROR = r"(?P<ERROR>.*)"
     pattern = re.compile(
         "|".join(
             [
@@ -38,6 +40,7 @@ def tokenise(inp: str) -> list[Token]:
                 OPEN_BRACKET,
                 CLOSE_BRACKET,
                 WS,
+                ERROR,
             ]
         )
     )
@@ -50,6 +53,7 @@ def tokenise(inp: str) -> list[Token]:
                     continue
                 case "STRING":
                     # remove the surrounding quotes
+                    # TODO: add information about token location
                     yield Token(m.lastgroup, m.group()[1:-1])
                 case _:
                     yield Token(m.lastgroup, m.group())
@@ -59,9 +63,14 @@ def tokenise(inp: str) -> list[Token]:
 
 def parse(tokens: list[Token]) -> RootNode:
     def consume(expected_type: str):
-        next_token = tokens.pop(0)
+        try:
+            next_token = tokens.pop(0)
+        except IndexError:
+            raise RuntimeError("Could not parse JSON, empty token list")
         if next_token.type != expected_type:
-            raise RuntimeError(f"Parse error at {next_token}")
+            raise RuntimeError(
+                f"Parse error at {next_token}, expected type: {expected_type}"
+            )
         return next_token.value
 
     def peek(expected_type: str):
@@ -73,7 +82,8 @@ def parse(tokens: list[Token]) -> RootNode:
     def parse_boolean() -> BooleanNode:
         return BooleanNode(value=bool(consume("BOOLEAN")))
 
-    def parse_array() -> ArrayNode: ...
+    def parse_array() -> ArrayNode:
+        return ArrayNode(body=[])
 
     def parse_value() -> StringNode | NumericNode | BooleanNode:
         if peek("STRING"):
