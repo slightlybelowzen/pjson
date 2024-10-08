@@ -9,12 +9,15 @@ StringNode = namedtuple("StringNode", "value")
 NumericNode = namedtuple("NumericNode", "value")
 BooleanNode = namedtuple("BooleanNode", "value")
 NullNode = namedtuple("NullNode", "value")
+ArrayNode = namedtuple("ArrayNode", "body")
 
 
 def tokenise(inp: str) -> list[Token]:
     OPEN_BRACE = r"(?P<OPEN_BRACE>{)"
     CLOSE_BRACE = r"(?P<CLOSE_BRACE>})"
-    STRING = r'(?P<STRING>"\w+")'
+    OPEN_BRACKET = r"(?P<OPEN_BRACKET>\[)"
+    CLOSE_BRACKET = r"(?P<CLOSE_BRACKET>\])"
+    STRING = r'(?P<STRING>"[\w\-\_]+")'
     NUMERIC = r"(?P<NUMERIC>[-]?\d+\.?\d+)"
     COLON = r"(?P<COLON>:)"
     BOOLEAN = r"(?P<BOOLEAN>true|false)"
@@ -23,7 +26,19 @@ def tokenise(inp: str) -> list[Token]:
     WS = r"(?P<WS>\s+)"
     pattern = re.compile(
         "|".join(
-            [OPEN_BRACE, NULL, BOOLEAN, CLOSE_BRACE, NUMERIC, STRING, WS, COLON, COMMA]
+            [
+                NULL,
+                BOOLEAN,
+                STRING,
+                NUMERIC,
+                COLON,
+                COMMA,
+                OPEN_BRACE,
+                CLOSE_BRACE,
+                OPEN_BRACKET,
+                CLOSE_BRACKET,
+                WS,
+            ]
         )
     )
 
@@ -58,6 +73,8 @@ def parse(tokens: list[Token]) -> RootNode:
     def parse_boolean() -> BooleanNode:
         return BooleanNode(value=bool(consume("BOOLEAN")))
 
+    def parse_array() -> ArrayNode: ...
+
     def parse_value() -> StringNode | NumericNode | BooleanNode:
         if peek("STRING"):
             return StringNode(consume("STRING"))
@@ -67,6 +84,11 @@ def parse(tokens: list[Token]) -> RootNode:
             return parse_boolean()
         elif peek("NULL"):
             return NullNode(consume("NULL"))
+        elif peek("OPEN_BRACKET"):
+            consume("OPEN_BRACKET")
+            array_node = parse_array()
+            consume("CLOSE_BRACKET")
+            return array_node
         else:
             raise RuntimeError(
                 "Could not parse value, ensure it is of type (number, string, boolean, null)"
