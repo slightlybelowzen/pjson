@@ -1,25 +1,32 @@
-# {} -> RootNode(body={})
-# {"key": "value"} -> RootNode(body={"key": "value"})
-# {"key_1": "value_1", "key_2": value_2} -> RootNode(body={"key_1": "value_1", "key_2": value_2})
-
 import re
 import sys
 from collections import namedtuple
 
 Token = namedtuple("Token", ["type", "value"])
-RootNode = namedtuple("RootNode", ["body"])
+RootNode = namedtuple("RootNode", "body")
+KeyValueNode = namedtuple("KeyValueNode", ["key", "value"])
+StringNode = namedtuple("StringNode", "value")
 
 
 def tokenise(inp: str) -> list[Token]:
     OPEN_BRACE = r"(?P<OPEN_BRACE>{)"
     CLOSE_BRACE = r"(?P<CLOSE_BRACE>})"
+    STRING = r'(?P<STRING>"\w+")'
+    COLON = r"(?P<COLON>:)"
+    COMMA = r"(?P<COMMA>,)"
     WS = r"(?P<WS>\s+)"
-    pattern = re.compile("|".join([OPEN_BRACE, CLOSE_BRACE, WS]))
+    pattern = re.compile("|".join([OPEN_BRACE, CLOSE_BRACE, STRING, WS, COLON, COMMA]))
 
     def generate_tokens(pat, text):
         scanner = pat.scanner(text)
         for m in iter(scanner.match, None):
-            yield Token(m.lastgroup, m.group())
+            match m.lastgroup:
+                case "WS":
+                    continue
+                case "STRING":
+                    yield Token(m.lastgroup, m.group()[1:-1])
+                case _:
+                    yield Token(m.lastgroup, m.group())
 
     return list(generate_tokens(pat=pattern, text=inp))
 
@@ -29,12 +36,18 @@ def parse(tokens: list[Token]) -> RootNode:
         next_token = tokens.pop(0)
         if next_token.type != expected_type:
             raise Exception(f"Parse error at {next_token}")
-        return next_token
+        return next_token.value
+
+    def parse_body():
+        key = StringNode(value=consume("STRING"))
+        consume("COLON")
+        value = StringNode(value=consume("STRING"))
+        return RootNode(body=[KeyValueNode(key, value)])
 
     consume("OPEN_BRACE")
-    node = RootNode(body={})
+    ast = parse_body()
     consume("CLOSE_BRACE")
-    return node
+    return ast
 
 
 def main():
